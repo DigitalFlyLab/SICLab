@@ -38,7 +38,6 @@ The SIC model aims to simulate large-scale neural dynamics by:
 The data used in this project can be obtained from the following resources:
 
 - Dataset repository: https://zenodo.org/records/19213473  
-- Detailed connectomics and neural data: https://flywire.ai/
+- Detailed connectomics and neural data: [https://flywire.ai/](https://codex.flywire.ai/api/download?dataset=fafb)
 
-The Zenodo repository provides the dataset used in this project, while the FlyWire platform offers detailed large-scale neural reconstruction data.
-
+If three-dimensional visualization of neurons is required, the corresponding **Neuron Skeletons** should also be downloaded from the FlyWire dataset(https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files).
