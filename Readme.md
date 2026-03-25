@@ -2,15 +2,14 @@
   <img src="SIC_logo.jpeg" alt="SIC Logo" width="200"/>
 </p>
 
-The **Signal Infinite Cascade (SIC)** model is a computational framework designed to predict neural activity across the whole brain. The model receives sensory inputs directly from real-world environments and propagates signals through large-scale neural circuits to estimate the responses of individual neurons.
+The **Signal Infinite Cascade (SIC)** model is a computational framework designed to predict neural activity across the whole brain. The model can directly receive inputs from the real environment and generate predictions for the responses of neurons throughout the brain.
 
 <p align="center">
   <img src="Vision.gif" alt="SIC Vision Demo" width="500"/>
 </p>
 ## 🧠 Overview
 
-**Signal Infinite Cascade (SIC)** is a model designed to predict neural activity across the entire brain.  
-The model can directly receive inputs from the real environment and generate predictions for the responses of neurons throughout the brain.
+**SIC** is a model designed to predict neural activity across the entire brain.  
 
 ## ✨ Key Idea
 
