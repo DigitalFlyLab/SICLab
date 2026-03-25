@@ -57,12 +57,19 @@ The SIC model aims to simulate large-scale neural dynamics by:
 
 The data used in this project can be obtained from the following resources:
 
-- Dataset repository: https://zenodo.org/records/19213473  
-- Detailed connectomics and neural data: [https://flywire.ai/](https://codex.flywire.ai/api/download?dataset=fafb)
+- **Dataset repository (preprocessed FlyWire data):** https://zenodo.org/records/19213473  
+  This repository provides a preprocessed version of the FlyWire dataset suitable for running the SIC model directly.
 
-If three-dimensional visualization of neurons is required, you should:
+- **Detailed connectomics and neural data:** [FlyWire platform](https://codex.flywire.ai/api/download?dataset=fafb)  
+  For access to the full-scale neural reconstructions and connectomics data.
+  
+## 🧬 3D Visualization of Neurons
 
-1. Download the corresponding **Neuron Skeletons** from the FlyWire dataset: [FlyWire Skeleton Files](https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files)  
-2. Install or update the `navis` Python package with all dependencies:
+To perform three-dimensional visualization of neurons, follow these steps:
+
+1. **Download Neuron Skeletons** from the FlyWire dataset: [FlyWire Skeleton Files](https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files)  
+   These skeleton files are required for reconstructing 3D neuronal structures.
+
+2. **Install or update the `navis` Python package** with all dependencies:
 ```bash
 pip install "navis[all]" -U
