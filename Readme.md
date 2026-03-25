@@ -51,6 +51,24 @@ The SIC model aims to simulate large-scale neural dynamics by:
 
 ---
 
+## 🛠 Environment Setup
+
+To set up the environment and install all necessary dependencies for this project, you can use the provided `requirements.in` file. 
+
+Run the following command to install the required packages directly via `pip`:
+
+```bash
+pip install -r requirements.in
+```
+
+*(Optional)* If you manage your environments with `pip-tools`, you can compile it into a `requirements.txt` and sync your environment:
+
+```bash
+pip install pip-tools
+pip-compile requirements.in
+pip-sync
+```
+
 ---
 
 ## 📦 Data Availability
@@ -70,6 +88,5 @@ To perform three-dimensional visualization of neurons, follow these steps:
 1. **Download Neuron Skeletons** from the FlyWire dataset: [FlyWire Skeleton Files](https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files)  
    These skeleton files are required for reconstructing 3D neuronal structures.
 
-2. **Install or update the `navis` Python package** with all dependencies:
-```bash
-pip install "navis[all]" -U
+2. **Ensure dependencies are installed:**  
+   The `navis` Python package and its dependencies are required for 3D reconstruction. This is automatically handled if you followed the **Environment Setup** instructions using the `requirements.in` file.
