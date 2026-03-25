@@ -1,7 +1,7 @@
 # SIC Project
 
 <p align="left">
-  <img src="SIC_logo.png" alt="SIC Logo" width="400"/>
+  <img src="SIC_logo.jpeg" alt="SIC Logo" width="400"/>
 </p>
 
 ## 🧠 Overview
