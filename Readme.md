@@ -60,4 +60,9 @@ The data used in this project can be obtained from the following resources:
 - Dataset repository: https://zenodo.org/records/19213473  
 - Detailed connectomics and neural data: [https://flywire.ai/](https://codex.flywire.ai/api/download?dataset=fafb)
 
-If three-dimensional visualization of neurons is required, the corresponding **Neuron Skeletons** should also be downloaded from the FlyWire dataset(https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files).
+If three-dimensional visualization of neurons is required, you should:
+
+1. Download the corresponding **Neuron Skeletons** from the FlyWire dataset: [FlyWire Skeleton Files](https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files)  
+2. Install or update the `navis` Python package with all dependencies:
+```bash
+pip install "navis[all]" -U
