@@ -10,8 +10,20 @@ The **Signal Infinite Cascade (SIC)** model is a computational framework designe
 ## 🧠 Overview
 
 **SIC** is a model designed to predict neural activity across the entire brain.  
+The SIC framework provides a unified approach for modeling neural dynamics in the **Drosophila visual system and other sensory modalities**.
 
-## ✨ Key Idea
+Using the SIC model, researchers can achieve:
+
+- **Improved prediction of neural activity**  
+  The SIC model captures neural responses to visual stimuli with high stability and accuracy.
+
+- **Generalization across sensory modalities**  
+  The model successfully predicts neural dynamics in both visual and motion-related circuits, accurately reproducing inhibitory and excitatory interactions observed in experimental data.
+
+- **Whole-brain, neuron-level simulation**  
+  By incorporating partially measured neural activity as constraints, SIC can simulate responses of individual neurons across the entire brain under diverse conditions. This provides a comprehensive framework linking sensory inputs to whole-brain neural activity and enables new possibilities for digital life modeling.
+  
+## ✨ SIC Process
 
 The SIC model aims to simulate large-scale neural dynamics by:
 
