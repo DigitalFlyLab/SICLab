@@ -412,10 +412,7 @@ class SICModelTorch:
         # --- Baseline subtraction (linear domain) ---
         baseline_values = responses_truncated[:, 0].copy()
         responses_baseline_sub = responses_truncated - baseline_values[:, np.newaxis]
-
-        # ==================================================
-        # ✅ NEW: ReLU BEFORE low-pass
-        # ==================================================
+        
         responses_relu = self._silu(responses_baseline_sub)
 
         # --- Low-pass filtering AFTER ReLU ---
