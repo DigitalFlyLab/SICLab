@@ -5,7 +5,7 @@
 <h1 align="center">Signal Infinite Cascade (SIC)</h1>
 
 <p align="center">
-  <em>A computational framework for predicting neuron-level activity across the whole brain.</em>
+  <em>A computational model for predicting neuron-level activity across the whole brain.</em>
 </p>
 
 <p align="center">
