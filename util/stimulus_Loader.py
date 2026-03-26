@@ -49,14 +49,13 @@ class StimulusProcessor:
     # --------------------------------------------------
     def compute_secondly_projection(self, stimulus):
         H, W, T = stimulus.shape
-        frames_per_sec = int(self.fps / 5)  # 每秒 5 帧?
+        frames_per_sec = int(self.fps / 5)
         num_sec = T // frames_per_sec
 
         projections = []
         for s in range(num_sec):
             seg = stimulus[:, :, s*frames_per_sec:(s+1)*frames_per_sec]
 
-            # 取这一秒中间那一帧
             mid_idx = frames_per_sec // 2
             frame = seg[:, :, mid_idx]
 
