@@ -90,3 +90,28 @@ To perform three-dimensional visualization of neurons, follow these steps:
 
 2. **Ensure dependencies are installed:**  
    The `navis` Python package and its dependencies are required for 3D reconstruction. This is automatically handled if you followed the **Environment Setup** instructions using the `requirements.in` file.
+
+---
+
+## 🚀 Reproduction Workflow
+
+To reproduce the results and figures, please run the Jupyter Notebooks in the `script/` folder in the following order:
+
+### Phase 1: Connectome Matrix Generation (Run First)
+- **`get_FM.ipynb`**: Processes raw synaptic connection data and generates the functional mapping weights (saved in `output/`). This must be executed before any other scripts.
+
+### Phase 2: Neural Dynamics Simulation (Run in Any Order)
+Once the matrices are generated, you can run the following simulation scripts independently:
+- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the Full-Range Index (FRI).
+- **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
+- **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
+- **`neuron_other.ipynb`**: Tests bar and edge stimuli responses.
+- **`neuron_RealWorld.ipynb`**: Simulates responses to complex real-world video stimuli.
+
+### Phase 3: Results Analysis & Plotting (Run Last)
+After the simulation data is generated, run these plotting scripts to generate the figures:
+- **`Figure2.ipynb`**: Analyzes connection strengths and depths (depends on Phase 1).
+- **`Figure3.ipynb` & `Figure3b.ipynb`**: Visualizes polarity (FRI) and direction selectivity (DSI) distributions (depends on Phase 2).
+- **`Figure4.ipynb`**: Plots peak traces for looming responses (depends on `neuron_looming.ipynb`).
+- **`Figure5.ipynb`**: Visualizes 3D brain structure and networks (requires SWC data and Phase 1 matrices).
+- **`FigurePlot.ipynb` / `FigurePlot copy.ipynb`**: Aggregates data to generate overall summary plots (best run after all Phase 2 scripts are completed).

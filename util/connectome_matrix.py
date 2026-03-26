@@ -55,11 +55,7 @@ class ConnectomeMatrixExporter:
                 cols.append(post_idx)
                 data.append(weight)
             return (rows, cols, data)
-
-        # NOTE:
-        # np.array_split(DataFrame, ...) 会把 DataFrame 转成 ndarray（丢失列名），
-        # 从而导致 chunk 没有 iterrows()。
-        # 这里按索引分块，确保传给 process_chunk 的仍然是 DataFrame。
+        
         chunk_indices = np.array_split(conn_df.index, self.n_jobs * 4)
         chunks = [conn_df.loc[idx] for idx in chunk_indices]
 
