@@ -105,7 +105,6 @@ Once the matrices are generated, you can run the following simulation scripts in
 - **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the Full-Range Index (FRI).
 - **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
 - **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
-- **`neuron_other.ipynb`**: Tests bar and edge stimuli responses.
 - **`neuron_RealWorld.ipynb`**: Simulates responses to complex real-world video stimuli.
 
 ### Phase 3: Results Analysis & Plotting (Run Last)
