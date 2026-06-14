@@ -179,120 +179,444 @@ class VFMShow:
 
         print("All raster matrices saved (no centering).")
 
-    def plot_single_neuron_all_layers(self, neuron_id: int, normalize: bool = False):
-
+    def plot_single_neuron_all_layers(
+            self,
+            neuron_id: int = None,
+            normalize: bool = False,
+            save_path: str = None,
+            random_seed: int = None
+        ):
         import os
         import numpy as np
         import matplotlib.pyplot as plt
-        from matplotlib.colors import TwoSlopeNorm
+        from matplotlib.colors import TwoSlopeNorm, LinearSegmentedColormap
+        from matplotlib.collections import LineCollection
 
-        neuron_ids = [neuron_id]
-        layers_list = ['l1', 'l2', 'l3']
+        try:
+            import scienceplots
+            plt.style.use(['science', 'nature', 'no-latex'])
+        except Exception:
+            pass
 
-        mask_path = './output/combined_eye_mask_41x82.npz'
-        mask_data = np.load(mask_path)
-        mask = mask_data['mask'].astype(np.uint8)  # (H, W)
-        height, width = mask.shape
+        plt.rcParams.update({
+            "font.family": "sans-serif",
+            "font.sans-serif": ["Liberation Sans"],
 
-        combined_weights = {}
-        global_max = np.zeros(len(neuron_ids), dtype=np.float32)
+            "font.size": 50,
+            "axes.labelsize": 50,
+            "axes.titlesize": 50,
+            "legend.fontsize": 50,
+            "xtick.labelsize": 50,
+            "ytick.labelsize": 50,
 
-        vmax_global = 0
+            "axes.linewidth": 1.5,
+            "figure.dpi": 300,
+            "savefig.dpi": 600,
 
-        for neuron_type in layers_list:
-            layer = neuron_type.upper()
-            combined_weights[layer] = np.full(
-                (len(neuron_ids), height, width),
+            "xtick.top": False,
+            "ytick.right": False,
+            "xtick.minor.top": False,
+            "ytick.minor.right": False,
+            "xtick.minor.visible": False,
+            "ytick.minor.visible": False,
+        })
+
+        def stylize_heatmap_axis(ax):
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.minorticks_off()
+
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+            ax.tick_params(
+                axis="both",
+                which="both",
+                top=False,
+                right=False,
+                bottom=False,
+                left=False
+            )
+
+            ax.grid(False)
+
+        def draw_valid_boundary(ax, data, linewidth=0.8, color="black"):
+            """
+            只绘制有值区域和无值区域之间的方格边界。
+            不画每个小方格内部边框。
+            """
+            valid = np.isfinite(data)
+            nrows, ncols = valid.shape
+
+            segments = []
+
+            for r in range(nrows):
+                for c in range(ncols):
+                    if not valid[r, c]:
+                        continue
+
+                    x0, x1 = c - 0.5, c + 0.5
+                    y0, y1 = r - 0.5, r + 0.5
+
+                    if r == 0 or not valid[r - 1, c]:
+                        segments.append([(x0, y0), (x1, y0)])
+
+                    if r == nrows - 1 or not valid[r + 1, c]:
+                        segments.append([(x0, y1), (x1, y1)])
+
+                    if c == 0 or not valid[r, c - 1]:
+                        segments.append([(x0, y0), (x0, y1)])
+
+                    if c == ncols - 1 or not valid[r, c + 1]:
+                        segments.append([(x1, y0), (x1, y1)])
+
+            if len(segments) > 0:
+                lc = LineCollection(
+                    segments,
+                    colors=color,
+                    linewidths=linewidth,
+                    capstyle="butt",
+                    joinstyle="miter",
+                    zorder=3
+                )
+                ax.add_collection(lc)
+
+        def generate_center_decay_random_map(
+            height,
+            width,
+            mask,
+            rng,
+            decay_power=1.6,
+            left_noise_strength=0.12,
+            right_noise_strength=0.5
+        ):
+            """
+            生成随机 FM：
+
+            left:
+                中心值接近 1，并从中心向外衰减。
+                加少量噪声。
+
+            right:
+                不做空间衰减。
+                整体约为 -0.5，并加入 ±0.5 噪声。
+                因此右侧大致范围为 [-1, 0]。
+            """
+            random_map = np.full(
+                (height, width),
                 np.nan,
                 dtype=np.float32
             )
 
-            for out_idx, nid in enumerate(neuron_ids):
-                concat_data = np.full((height, width), np.nan, dtype=np.float32)
+            half = width // 2
 
-                for side in ['left', 'right']:
-                    weight_path = f'./output/VFM/{neuron_type}_{side}.npz'
-                    if not os.path.exists(weight_path):
-                        continue
+            yy, xx = np.meshgrid(
+                np.arange(height),
+                np.arange(width),
+                indexing="ij"
+            )
 
-                    data = np.load(weight_path)
-                    target_ids = data['target_ids']
-                    exc_data = data['exc']
-                    inh_data = data['inh']
+            left_center_x = half / 2.0 - 0.5
+            center_y = (height - 1) / 2.0
 
-                    idx = np.where(target_ids == nid)[0]
-                    if len(idx) == 0:
-                        continue
-                    idx = idx[0]
+            left_dist = np.sqrt(
+                ((xx - left_center_x) / max(half / 2.0, 1)) ** 2 +
+                ((yy - center_y) / max(height / 2.0, 1)) ** 2
+            )
 
-                    combined = (exc_data[idx] + inh_data[idx]).astype(np.float32)
+            left_decay = np.exp(
+                -decay_power * left_dist[:, :half]
+            ).astype(np.float32)
 
-                    if side == 'left':
-                        concat_data[:, :width // 2] = combined
-                    else:
-                        concat_data[:, width // 2:] = np.fliplr(combined)
+            left_noise = rng.uniform(
+                low=-left_noise_strength,
+                high=left_noise_strength,
+                size=(height, half)
+            ).astype(np.float32)
 
-                concat_data_masked = np.full_like(concat_data, np.nan, dtype=np.float32)
-                concat_data_masked[mask == 1] = concat_data[mask == 1]
+            left_value = left_decay + left_noise * left_decay
+            left_value = np.clip(left_value, -1.0, 1.0)
 
-                combined_weights[layer][out_idx] = concat_data_masked
-                vmax_global = max(vmax_global, np.nanmax(np.abs(combined_weights[layer][out_idx])))
+            right_noise = rng.uniform(
+                low=-right_noise_strength,
+                high=right_noise_strength,
+                size=(height, width - half)
+            ).astype(np.float32)
+
+            right_value = -0.5 + right_noise
+            right_value = np.clip(right_value, -1.0, 1.0)
+
+            value = np.full(
+                (height, width),
+                np.nan,
+                dtype=np.float32
+            )
+
+            value[:, :half] = left_value
+            value[:, half:] = right_value
+
+            random_map[mask == 1] = value[mask == 1]
+
+            return random_map
+
+        layers_list = ["l1", "l2", "l3"]
+        layers = ["L1", "L2", "L3"]
+
+        mask_path = "./output/combined_eye_mask_41x82.npz"
+        mask_data = np.load(mask_path)
+        mask = mask_data["mask"].astype(np.uint8)
+
+        height, width = mask.shape
+
+        combined_weights = {}
+        vmax_global = 0.0
+
+
+        if neuron_id is None:
+            rng = np.random.default_rng(random_seed)
+
+            for layer in layers:
+                random_data = generate_center_decay_random_map(
+                    height=height,
+                    width=width,
+                    mask=mask,
+                    rng=rng,
+                    decay_power=1.6,
+                    left_noise_strength=0.12,
+                    right_noise_strength=0.5
+                )
+
+                combined_weights[layer] = random_data[None, :, :]
+
+            vmax_global = 1.0
+
+
+        else:
+            neuron_ids = [neuron_id]
+
+            for neuron_type in layers_list:
+                layer = neuron_type.upper()
+
+                combined_weights[layer] = np.full(
+                    (len(neuron_ids), height, width),
+                    np.nan,
+                    dtype=np.float32
+                )
+
+                for out_idx, nid in enumerate(neuron_ids):
+                    concat_data = np.full(
+                        (height, width),
+                        np.nan,
+                        dtype=np.float32
+                    )
+
+                    for side in ["left", "right"]:
+                        weight_path = f"./output/VFM/{neuron_type}_{side}.npz"
+
+                        if not os.path.exists(weight_path):
+                            print(f"[Warning] File not found: {weight_path}")
+                            continue
+
+                        data = np.load(weight_path)
+
+                        target_ids = data["target_ids"]
+                        exc_data = data["exc"]
+                        inh_data = data["inh"]
+
+                        idx = np.where(target_ids == nid)[0]
+
+                        if len(idx) == 0:
+                            continue
+
+                        idx = idx[0]
+
+                        combined = (
+                            exc_data[idx] + inh_data[idx]
+                        ).astype(np.float32)
+
+                        if side == "left":
+                            concat_data[:, :width // 2] = combined
+                        else:
+                            concat_data[:, width // 2:] = np.fliplr(combined)
+
+                    concat_data_masked = np.full_like(
+                        concat_data,
+                        np.nan,
+                        dtype=np.float32
+                    )
+
+                    concat_data_masked[mask == 1] = concat_data[mask == 1]
+
+                    combined_weights[layer][out_idx] = concat_data_masked
+
+                    if np.any(np.isfinite(concat_data_masked)):
+                        layer_vmax = np.nanmax(np.abs(concat_data_masked))
+                        if np.isfinite(layer_vmax):
+                            vmax_global = max(vmax_global, layer_vmax)
 
         eps = 1e-8
 
-        if normalize:
-            if vmax_global > eps:
-                scale = vmax_global * (1-0.3*np.log(vmax_global + eps))
-                if scale > eps:
-                    for layer in [l.upper() for l in layers_list]:
-                        for out_idx in range(len(neuron_ids)):
-                            combined_weights[layer][out_idx] /= scale
-                else:
-                    for layer in [l.upper() for l in layers_list]:
-                        for out_idx in range(len(neuron_ids)):
-                            combined_weights[layer][out_idx] *= 0.0
 
-        layers = ['L1', 'L2', 'L3']
-        num_layers = len(layers)
+        if normalize:
+            if neuron_id is None:
+                vmax_global = 1.0
+            else:
+                if vmax_global > eps:
+                    scale = vmax_global * (1 - 0.3 * np.log(vmax_global + eps))
+
+                    if scale > eps and np.isfinite(scale):
+                        for layer in layers:
+                            combined_weights[layer] /= scale
+                    else:
+                        for layer in layers:
+                            combined_weights[layer] *= 0.0
+
+                    vmax_global = 1.0
+                else:
+                    for layer in layers:
+                        combined_weights[layer] *= 0.0
+                    vmax_global = 1.0
+
+        if vmax_global <= eps or not np.isfinite(vmax_global):
+            vmax_global = 1.0
+
+
+        colors = [
+            "#2244bb",
+            "#88aaff",
+            "#ffffff",
+            "#ffaaaa",
+            "#bb2222"
+        ]
+
+        cmap = LinearSegmentedColormap.from_list(
+            "custom_exc_inh_map",
+            colors,
+            N=256
+        )
+        cmap.set_bad("white")
+
+        norm = TwoSlopeNorm(
+            vmin=-vmax_global,
+            vcenter=0.0,
+            vmax=vmax_global
+        )
+
 
         fig, axes = plt.subplots(
-            num_layers, 1,
-            figsize=(5, 2 * num_layers)
+            len(layers),
+            1,
+            figsize=(15, 14),
+            gridspec_kw={"hspace": 0.06}
         )
-        if num_layers == 1:
+
+        if len(layers) == 1:
             axes = [axes]
 
-        cmap = plt.cm.RdBu_r.copy()
-        cmap.set_bad('white') 
-
+        im = None
         idx = 0
-        for i, layer in enumerate(layers):
-            ax = axes[i]
+
+        for ax, layer in zip(axes, layers):
             data = combined_weights[layer][idx]
-
-            vmax = np.nanmax(np.abs(data))
-            if not np.isfinite(vmax):
-                continue
-
-            norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
 
             im = ax.imshow(
                 data,
                 cmap=cmap,
                 norm=norm,
-                origin='lower',
-                aspect='auto'
+                origin="lower",
+                aspect="equal",
+                interpolation="nearest"
             )
 
-            ax.axvline(x=data.shape[1] // 2, color='black', linestyle='--')
-            ax.set_xticks([])
-            ax.set_yticks([])
+            draw_valid_boundary(
+                ax,
+                data,
+                linewidth=0.8,
+                color="black"
+            )
 
-            cbar = plt.colorbar(im, ax=ax, shrink=0.8)
-            cbar.ax.tick_params(labelsize=12)  
-            
-        plt.tight_layout()
+
+            ax.text(
+                -0.06,
+                0.5,
+                layer,
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                rotation=90,
+                fontsize=50,
+                fontweight="normal"
+            )
+
+            stylize_heatmap_axis(ax)
+
+        fig.subplots_adjust(
+            left=0.10,
+            right=0.88,
+            top=0.90,
+            bottom=0.04,
+            hspace=0.16
+        )
+
+
+        fig.text(
+            0.46,
+            0.9,
+            "Left",
+            ha="center",
+            va="center",
+            fontsize=50
+        )
+
+        fig.text(
+            0.72,
+            0.9,
+            "Right",
+            ha="center",
+            va="center",
+            fontsize=50
+        )
+
+
+        if normalize:
+            cbar_ticks = [-1, 0, 1]
+        else:
+            cbar_ticks = [-vmax_global, 0, vmax_global]
+
+        cbar = fig.colorbar(
+            im,
+            ax=axes,
+            orientation="vertical",
+            fraction=0.03,
+            pad=0.02,
+            ticks=cbar_ticks
+        )
+
+        cbar.outline.set_linewidth(1.2)
+        cbar.ax.tick_params(labelsize=50)
+
+
+        cbar.set_label(
+            "FM",
+            rotation=90,
+            labelpad=45,
+            fontsize=50
+        )
+
+        if save_path is not None:
+            save_dir = os.path.dirname(save_path)
+            if save_dir != "":
+                os.makedirs(save_dir, exist_ok=True)
+
+            fig.savefig(
+                save_path,
+                dpi=600,
+                bbox_inches="tight",
+                transparent=False
+            )
+
         plt.show()
+
 
     def plot_neuron_umap_from_profiles(
         self,
