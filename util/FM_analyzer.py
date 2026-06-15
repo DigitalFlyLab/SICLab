@@ -5,7 +5,72 @@ from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 import os
 import warnings
+from numba import njit
+@njit(cache=True)
+def _single_source_search_numba_core(
+    source_idx,
+    max_depth,
+    min_weight,
+    n,
+    W_indptr,
+    W_indices,
+    W_data,
+    blocked_mask,
+    has_blocked
+):
+    pos_weights = np.zeros(n, dtype=np.float64)
+    neg_weights = np.zeros(n, dtype=np.float64)
 
+    if has_blocked and blocked_mask[source_idx]:
+        return pos_weights, neg_weights
+
+    nodes = [source_idx]
+    weights = [1.0]
+    depths = [0]
+
+    head = 0
+
+    while head < len(nodes):
+
+        current_idx = nodes[head]
+        current_weight = weights[head]
+        depth = depths[head]
+        head += 1
+
+        if depth > max_depth or abs(current_weight) < min_weight:
+            continue
+
+        if has_blocked and blocked_mask[current_idx]:
+            continue
+
+        if current_weight > 0:
+            pos_weights[current_idx] += current_weight
+        else:
+            neg_weights[current_idx] += current_weight
+
+        if depth >= max_depth:
+            continue
+
+        start = W_indptr[current_idx]
+        end = W_indptr[current_idx + 1]
+
+        next_depth = depth + 1
+
+        for j in range(start, end):
+
+            post_idx = W_indices[j]
+
+            if has_blocked and blocked_mask[post_idx]:
+                continue
+
+            new_weight = current_weight * W_data[j]
+
+            if abs(new_weight) >= min_weight:
+                nodes.append(post_idx)
+                weights.append(new_weight)
+                depths.append(next_depth)
+
+    return pos_weights, neg_weights
 class FMAnalyzer:
     def __init__(self, matrix_npz_path, neuron_ids_path, neuron_types_path):
         """
@@ -21,6 +86,11 @@ class FMAnalyzer:
                 (loaded['data'], loaded['indices'], loaded['indptr']),
                 shape=loaded['shape']
             )
+            self.W = self.W.tocsr()
+            self.W.sum_duplicates()
+            self.W.sort_indices()
+            self.W.eliminate_zeros()
+            
         except KeyError as e:
             available_keys = loaded.files if 'loaded' in locals() else []
             raise ValueError(
@@ -55,73 +125,131 @@ class FMAnalyzer:
         filtered = df[(df['type'] == neuron_type) & (df['side'] == side)]
         return filtered['root_id'].tolist()
 
-    def set_blocked_types(self, blocked_types, side='right'):
+    def set_blocked_types(self, blocked_types):
         """
-        Set neuron types to block (e.g., ['Tm3', 'T5b']),
-        these nodes will not be allowed in path traversal.
+        Set neuron types to block.
+        These nodes will not be allowed in path traversal.
+
+        Block all neurons whose type is in blocked_types,
+        regardless of side.
         """
         df = self.neuron_types_df
-        blocked = df[(df['type'].isin(blocked_types)) & (df['side'] == side)]['root_id'].tolist()
-        blocked_idx = {self.id_to_idx[nid] for nid in blocked if nid in self.id_to_idx}
+
+        # =========================================================
+        # Block all sides
+        # =========================================================
+        blocked_df = df[
+            df['type'].isin(blocked_types)
+        ]
+
+        blocked = blocked_df['root_id'].tolist()
+
+        blocked_idx = {
+            self.id_to_idx[nid]
+            for nid in blocked
+            if nid in self.id_to_idx
+        }
+
         self.blocked_idx = blocked_idx
+
+        # Numba-friendly boolean mask
+        blocked_mask = np.zeros(len(self.neuron_ids), dtype=np.bool_)
+
+        for idx in blocked_idx:
+            blocked_mask[idx] = True
+
+        self.blocked_mask = blocked_mask
+
+        # =========================================================
+        # Print block information
+        # =========================================================
+        print("\n" + "=" * 60)
+        print("Blocked neuron information")
+        print("=" * 60)
+        print(f"Blocked types: {blocked_types}")
+        print("Blocked side: all")
+        print(f"Matched neurons in neuron_types_df: {len(blocked):,}")
+        print(f"Matched neurons in connectome matrix: {len(blocked_idx):,}")
+        print(f"Final blocked_mask count: {np.sum(blocked_mask):,}")
+
+        print("\nBlocked count by type:")
+        type_counts = blocked_df["type"].value_counts()
+
+        for t in blocked_types:
+            count_df = int(type_counts.get(t, 0))
+            ids_t = blocked_df.loc[blocked_df["type"] == t, "root_id"].tolist()
+            count_matrix = sum(nid in self.id_to_idx for nid in ids_t)
+
+            print(
+                f"  {t}: "
+                f"{count_df:,} in neuron_types_df, "
+                f"{count_matrix:,} in connectome matrix"
+            )
+
+        if "side" in blocked_df.columns:
+            print("\nBlocked count by side:")
+            side_counts = blocked_df["side"].value_counts()
+
+            for s, c in side_counts.items():
+                ids_s = blocked_df.loc[blocked_df["side"] == s, "root_id"].tolist()
+                count_matrix_s = sum(nid in self.id_to_idx for nid in ids_s)
+
+                print(
+                    f"  {s}: "
+                    f"{int(c):,} in neuron_types_df, "
+                    f"{count_matrix_s:,} in connectome matrix"
+                )
+
+        print("=" * 60 + "\n")
 
     def _single_source_search(self, args):
         source_id, max_depth, min_weight = args
-        
-        pos_weights = np.zeros(len(self.neuron_ids), dtype=np.float64)
-        neg_weights = np.zeros(len(self.neuron_ids), dtype=np.float64)
+
+        n = len(self.neuron_ids)
+
+        pos_weights = np.zeros(n, dtype=np.float64)
+        neg_weights = np.zeros(n, dtype=np.float64)
+
         if source_id not in self.id_to_idx:
             return pos_weights, neg_weights
+
         source_idx = self.id_to_idx[source_id]
 
-        if hasattr(self, 'blocked_idx') and source_idx in self.blocked_idx:
-            return pos_weights, neg_weights
+        # -----------------------------
+        # CSR local bindings
+        # -----------------------------
+        W_indptr = self.W.indptr
+        W_indices = self.W.indices
+        W_data = self.W.data
 
-        from collections import deque
-        queue = deque()
-        queue.append((source_idx, 1.0, 0))
-        visited_edges = set()
+        # -----------------------------
+        # blocked mask
+        # -----------------------------
+        if hasattr(self, 'blocked_mask'):
+            blocked_mask = self.blocked_mask
+            has_blocked = True
+        else:
+            blocked_mask = np.zeros(n, dtype=np.bool_)
+            has_blocked = False
 
-        while queue:
-            current_idx, current_weight, depth = queue.popleft()
-
-            if depth > max_depth or abs(current_weight) < min_weight:
-                continue
-
-            if hasattr(self, 'blocked_idx') and current_idx in self.blocked_idx:
-                continue
-
-            if current_weight > 0:
-                pos_weights[current_idx] += current_weight
-            else:
-                neg_weights[current_idx] += current_weight
-
-            for j in range(self.W.indptr[current_idx], self.W.indptr[current_idx + 1]):
-                post_idx = self.W.indices[j]
-                conn_weight = self.W.data[j]
-                edge_key = (current_idx, post_idx)
-                if edge_key in visited_edges:
-                    continue
-                visited_edges.add(edge_key)
-
-                if hasattr(self, 'blocked_idx') and post_idx in self.blocked_idx:
-                    continue
-
-                new_weight = current_weight * conn_weight
-                if abs(new_weight) >= min_weight:
-                    queue.append((post_idx, new_weight, depth + 1))
-
-        return pos_weights, neg_weights
+        return _single_source_search_numba_core(
+            source_idx,
+            max_depth,
+            min_weight,
+            n,
+            W_indptr,
+            W_indices,
+            W_data,
+            blocked_mask,
+            has_blocked
+        )
 
     def compute_and_save_weights(self, neuron_types, side='right', blocked_types=None,
-                                 max_depth=50, min_weight=1e-6, num_processes=None, chunk_size=10):
-        """
-        Add blocked_types parameter to block specified neuron types in path traversal.
-        """
+                                 max_depth=100, min_weight=1e-6, num_processes=None, chunk_size=10):
         if blocked_types:
-            self.set_blocked_types(blocked_types, side)
+            self.set_blocked_types(blocked_types)
 
-        os.makedirs("./output", exist_ok=True)
+        os.makedirs("./preprocess", exist_ok=True)
         num_processes = num_processes or cpu_count()
 
         for neuron_type in neuron_types:
@@ -149,7 +277,7 @@ class FMAnalyzer:
                 neg_matrix[i] = neg_res
 
             blocked_tag = "_block" + "_".join(blocked_types) if blocked_types else ""
-            base_path = f"./output/{neuron_type.lower()}_{side}{blocked_tag}"
+            base_path = f"./preprocess/{neuron_type.lower()}_{side}{blocked_tag}"
 
             np.savez(
                 f"{base_path}_excitatory.npz",
@@ -182,7 +310,7 @@ class FMAnalyzer:
     def compute_from_specific_ids(self, source_ids,
                                 blocked_types=None,
                                 side='right',
-                                max_depth=50,
+                                max_depth=100,
                                 min_weight=1e-6,
                                 num_processes=None,
                                 specific_type='sugar',
@@ -191,9 +319,9 @@ class FMAnalyzer:
         Directly compute weights from specified neuron IDs
         """
         if blocked_types:
-            self.set_blocked_types(blocked_types, side)
+            self.set_blocked_types(blocked_types)
 
-        os.makedirs("./output", exist_ok=True)
+        os.makedirs("./preprocess", exist_ok=True)
         num_processes = num_processes or cpu_count()
 
         source_ids = [nid for nid in source_ids if nid in self.id_to_idx]
@@ -221,7 +349,7 @@ class FMAnalyzer:
             pos_matrix[i] = pos_res
             neg_matrix[i] = neg_res
 
-        base_path = f"./output/{specific_type}"
+        base_path = f"./preprocess/{specific_type}"
 
         np.savez(
             f"{base_path}_excitatory.npz",
@@ -247,8 +375,85 @@ class FMAnalyzer:
             }
         )
 
-        print(f"Results saved to ./output/{specific_type}_excitatory.npz and {specific_type}_inhibitory.npz")
+        print(f"Results saved to ./preprocess/{specific_type}_excitatory.npz and {specific_type}_inhibitory.npz")
 
+    def compute_weights_by_ids(self, source_ids, target_ids=None,
+                            blocked_types=None, max_depth=100, min_weight=1e-6,
+                            num_processes=None, chunk_size=10, save_prefix=None):
+        """
+        Compute weight matrices from explicit source IDs to target IDs.
+        
+        :param source_ids: List of neuron IDs to use as sources
+        :param target_ids: Optional list of neuron IDs to restrict targets
+        :param blocked_types: Optional list of neuron types to block during traversal
+        :param max_depth: Max traversal depth
+        :param min_weight: Minimum weight threshold
+        :param num_processes: Number of parallel processes
+        :param chunk_size: Chunk size for multiprocessing
+        :param save_prefix: Optional prefix for saving results
+        """
+        if blocked_types:
+            self.set_blocked_types(blocked_types)
+
+        if target_ids is None:
+            target_ids = self.neuron_ids
+
+        target_idx_set = {self.id_to_idx[tid] for tid in target_ids if tid in self.id_to_idx}
+
+        os.makedirs("./preprocess", exist_ok=True)
+        num_processes = num_processes or cpu_count()
+        n_sources = len(source_ids)
+        n_targets = len(target_ids)
+
+        pos_matrix = np.zeros((n_sources, n_targets), dtype=np.float64)
+        neg_matrix = np.zeros((n_sources, n_targets), dtype=np.float64)
+
+        tasks = [(src_id, max_depth, min_weight) for src_id in source_ids]
+        with Pool(processes=num_processes) as pool:
+            results = list(tqdm(
+                pool.imap(self._single_source_search, tasks, chunksize=chunk_size),
+                total=n_sources,
+                desc=f"Processing sources"
+            ))
+
+        for i, (pos_res, neg_res) in enumerate(results):
+            # Only keep entries for the specified target IDs
+            pos_matrix[i] = np.array([pos_res[self.id_to_idx[tid]] if tid in self.id_to_idx else 0
+                                    for tid in target_ids])
+            neg_matrix[i] = np.array([neg_res[self.id_to_idx[tid]] if tid in self.id_to_idx else 0
+                                    for tid in target_ids])
+
+        # Save results if prefix is given
+        if save_prefix:
+            blocked_tag = "_block" + "_".join(blocked_types) if blocked_types else ""
+            base_path = f"./preprocess/{save_prefix}{blocked_tag}"
+
+            np.savez(
+                f"{base_path}_excitatory.npz",
+                source_ids=source_ids,
+                target_ids=target_ids,
+                weight_matrix=pos_matrix,
+                metadata={
+                    'max_depth': max_depth,
+                    'min_weight': min_weight,
+                    'blocked_types': blocked_types
+                }
+            )
+            np.savez(
+                f"{base_path}_inhibitory.npz",
+                source_ids=source_ids,
+                target_ids=target_ids,
+                weight_matrix=neg_matrix,
+                metadata={
+                    'max_depth': max_depth,
+                    'min_weight': min_weight,
+                    'blocked_types': blocked_types
+                }
+            )
+            print(f"Results saved to {base_path}_excitatory.npz and {base_path}_inhibitory.npz")
+
+        return pos_matrix, neg_matrix
+    
     def export_combined_summary_csv(
         self,
         side,
@@ -256,7 +461,7 @@ class FMAnalyzer:
         pos_npz_paths,
         neg_npz_paths,
         cell_type_path="data/cell_type.txt",
-        output_csv="combined_summary.csv",
+        preprocess_csv="combined_summary.csv",
         max_depth=100
     ):
         """
@@ -423,6 +628,6 @@ class FMAnalyzer:
 
         df_out = pd.DataFrame(rows)
 
-        df_out.to_csv(output_csv, index=False)
+        df_out.to_csv(preprocess_csv, index=False)
 
-        print(f"Combined summary saved to {output_csv}")
+        print(f"Combined summary saved to {preprocess_csv}")

@@ -8,14 +8,13 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class SICModelTorch:
-    def __init__(self, subtype=None, device=None, matrix_dir="neuron_matrices_centered", t_step=10, rate=100, output_dir="./results/neuron_responses"):
+    def __init__(self, subtype=None, device=None, t_step=10, rate=100, output_dir="../results/PRS"):
         """
         Initialize the SIC model with PyTorch acceleration for batch processing.
         
         Args:
             subtype: Optional subtype specification
             device: Torch device to use. If None, will auto-select CUDA if available
-            matrix_dir: Directory name for weight matrices (default: "neuron_matrices_centered")
         """
         self.NEURON_GRID = (41, 82)
         self.TIME_STEP = t_step
@@ -26,7 +25,6 @@ class SICModelTorch:
         self.SAMPLING_RATE = rate
         self.b_lp, self.a_lp = butter(2, self.LOW_PASS_CUTOFF, btype='low', fs=self.SAMPLING_RATE)
         self.subtype = subtype
-        self.matrix_dir = matrix_dir
         
         # Setup device
         if device is None:
@@ -54,9 +52,9 @@ class SICModelTorch:
     def load_weights(
         self,
         neuron_ids: List[int],
-        matrix_dir: str = None,
         normalize: bool = False,
         center_to_origin: bool = False,
+        block: str = None
     ) -> Dict:
         """
         Load weights for multiple neurons from consolidated files.
@@ -74,12 +72,10 @@ class SICModelTorch:
         neuron_ids = list(neuron_ids) if not isinstance(neuron_ids, list) else neuron_ids
         num_neurons = len(neuron_ids)
 
-        current_matrix_dir = matrix_dir if matrix_dir is not None else self.matrix_dir
 
         weights = {
             'neuron_ids': neuron_ids,
             'indices': {nid: idx for idx, nid in enumerate(neuron_ids)},
-            'matrix_dir': current_matrix_dir,
             'side': 'combined'
         }
 
@@ -99,7 +95,10 @@ class SICModelTorch:
             }
 
             for side in ['left', 'right']:
-                path = f'./output/VFM/{neuron_type}_{side}.npz'
+                if block is None:
+                    path = f'./preprocess/VFM/{neuron_type}_{side}.npz'
+                else:
+                    path = f'./preprocess/VFM_{block}/{neuron_type}_{side}.npz'
 
                 try:
                     with np.load(path) as data:
@@ -494,7 +493,6 @@ class SICModelTorch:
             'response_shape': responses.shape,
             'resampled_length': responses.shape[1] + baseline_steps,
             'sampling_rate': self.SAMPLING_RATE,
-            'matrix_dir': weights.get('matrix_dir', self.matrix_dir),
             'side': weights.get('side', 'right'),
             'model_parameters': {
                 'L1_DECAY_TAU': self.L1_DECAY_TAU,

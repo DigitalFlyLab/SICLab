@@ -1,0 +1,6 @@
+data/
+refer/
+/script/preprocess
+/stimulus
+/results
+/util/__pycache__

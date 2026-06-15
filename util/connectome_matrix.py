@@ -45,33 +45,49 @@ class ConnectomeMatrixExporter:
     def _build_weights_parallel(self, conn_df, input_synapses):
         def process_chunk(chunk):
             rows, cols, data = [], [], []
+
             for _, row in chunk.iterrows():
                 pre_idx = self.id_to_idx[row['pre_root_id']]
                 post_idx = self.id_to_idx[row['post_root_id']]
+
                 sign = -1 if row['nt_type'] in {"GABA", "GLUT"} else 1
-                post_input_syn = input_synapses.get(row['post_root_id'], 1)  # avoid KeyError
+
+                post_input_syn = input_synapses.get(row['post_root_id'], 1)
+
                 weight = row['syn_count'] * sign / post_input_syn
+
+                if weight == 0.0:
+                    continue
+
                 rows.append(pre_idx)
                 cols.append(post_idx)
                 data.append(weight)
-            return (rows, cols, data)
-        
+
+            return rows, cols, data
+
         chunk_indices = np.array_split(conn_df.index, self.n_jobs * 4)
         chunks = [conn_df.loc[idx] for idx in chunk_indices]
 
         results = Parallel(n_jobs=self.n_jobs)(
             delayed(process_chunk)(chunk) for chunk in tqdm(chunks)
         )
-        
-        # Merge results
+
         all_rows, all_cols, all_data = [], [], []
+
         for r, c, d in results:
             all_rows.extend(r)
             all_cols.extend(c)
             all_data.extend(d)
-            
-        return coo_matrix((all_data, (all_rows, all_cols)), 
-                          shape=(len(self.neuron_ids), len(self.neuron_ids))).tocsr()
+
+        W = coo_matrix(
+            (all_data, (all_rows, all_cols)),
+            shape=(len(self.neuron_ids), len(self.neuron_ids))
+        ).tocsr()
+
+        W.sum_duplicates()
+        W.eliminate_zeros()
+
+        return W
 
     def save_connectome_matrix_npy(self):
         """Save connectome matrix into three separate files: sparse_matrix.npz + neuron_ids.npy + text file"""
@@ -123,4 +139,4 @@ class ConnectomeMatrixExporter:
             for r, c, v in zip(rows, cols, data):
                 pre_id = self.neuron_ids[r]
                 post_id = self.neuron_ids[c]
-                f.write(f"{pre_id} {post_id} {v:.6g}\n")
+                f.write(f"{pre_id} {post_id} {v:.7f}\n")

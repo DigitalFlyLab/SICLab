@@ -71,7 +71,7 @@ class VFMShow:
         print(f"\nProcessing all layers for {side} hemisphere (PyTorch accelerated)...")
 
         # Create output directory
-        os.makedirs(f'./output/VFM', exist_ok=True)
+        os.makedirs(f'./preprocess/VFM', exist_ok=True)
 
         # Load layer data
         all_data = {}
@@ -82,8 +82,8 @@ class VFMShow:
         print(f"Using device: {device}")
 
         for layer in layers:
-            pos_path = f'./output/{layer}_{side}{blocked_tag}_excitatory.npz'
-            neg_path = f'./output/{layer}_{side}{blocked_tag}_inhibitory.npz'
+            pos_path = f'./preprocess/{layer}_{side}{blocked_tag}_excitatory.npz'
+            neg_path = f'./preprocess/{layer}_{side}{blocked_tag}_inhibitory.npz'
             try:
                 exc_data = np.load(pos_path, allow_pickle=True)
                 inh_data = np.load(neg_path, allow_pickle=True)
@@ -171,7 +171,7 @@ class VFMShow:
                 continue
 
             np.savez_compressed(
-                f'./output/VFM/{layer}_{side}.npz',
+                f'./preprocess/VFM{blocked_tag}/{layer}_{side}.npz',
                 exc=visual_metrices[layer]['exc'].astype(np.float16),
                 inh=visual_metrices[layer]['inh'].astype(np.float16),
                 target_ids=visual_metrices[layer]['target_ids']
@@ -202,12 +202,12 @@ class VFMShow:
             "font.family": "sans-serif",
             "font.sans-serif": ["Liberation Sans"],
 
-            "font.size": 50,
-            "axes.labelsize": 50,
-            "axes.titlesize": 50,
-            "legend.fontsize": 50,
-            "xtick.labelsize": 50,
-            "ytick.labelsize": 50,
+            "font.size": 36,
+            "axes.labelsize": 36,
+            "axes.titlesize": 36,
+            "legend.fontsize": 36,
+            "xtick.labelsize": 36,
+            "ytick.labelsize": 36,
 
             "axes.linewidth": 1.5,
             "figure.dpi": 300,
@@ -241,10 +241,6 @@ class VFMShow:
             ax.grid(False)
 
         def draw_valid_boundary(ax, data, linewidth=0.8, color="black"):
-            """
-            只绘制有值区域和无值区域之间的方格边界。
-            不画每个小方格内部边框。
-            """
             valid = np.isfinite(data)
             nrows, ncols = valid.shape
 
@@ -290,18 +286,6 @@ class VFMShow:
             left_noise_strength=0.12,
             right_noise_strength=0.5
         ):
-            """
-            生成随机 FM：
-
-            left:
-                中心值接近 1，并从中心向外衰减。
-                加少量噪声。
-
-            right:
-                不做空间衰减。
-                整体约为 -0.5，并加入 ±0.5 噪声。
-                因此右侧大致范围为 [-1, 0]。
-            """
             random_map = np.full(
                 (height, width),
                 np.nan,
@@ -362,7 +346,7 @@ class VFMShow:
         layers_list = ["l1", "l2", "l3"]
         layers = ["L1", "L2", "L3"]
 
-        mask_path = "./output/combined_eye_mask_41x82.npz"
+        mask_path = "./preprocess/combined_eye_mask_41x82.npz"
         mask_data = np.load(mask_path)
         mask = mask_data["mask"].astype(np.uint8)
 
@@ -411,7 +395,7 @@ class VFMShow:
                     )
 
                     for side in ["left", "right"]:
-                        weight_path = f"./output/VFM/{neuron_type}_{side}.npz"
+                        weight_path = f"./preprocess/VFM/{neuron_type}_{side}.npz"
 
                         if not os.path.exists(weight_path):
                             print(f"[Warning] File not found: {weight_path}")
@@ -506,7 +490,7 @@ class VFMShow:
         fig, axes = plt.subplots(
             len(layers),
             1,
-            figsize=(15, 14),
+            figsize=(8, 6),
             gridspec_kw={"hspace": 0.06}
         )
 
@@ -544,7 +528,6 @@ class VFMShow:
                 ha="center",
                 va="center",
                 rotation=90,
-                fontsize=50,
                 fontweight="normal"
             )
 
@@ -565,7 +548,6 @@ class VFMShow:
             "Left",
             ha="center",
             va="center",
-            fontsize=50
         )
 
         fig.text(
@@ -574,7 +556,6 @@ class VFMShow:
             "Right",
             ha="center",
             va="center",
-            fontsize=50
         )
 
 
@@ -593,14 +574,13 @@ class VFMShow:
         )
 
         cbar.outline.set_linewidth(1.2)
-        cbar.ax.tick_params(labelsize=50)
+        cbar.ax.tick_params(labelsize=36)
 
 
         cbar.set_label(
             "FM",
             rotation=90,
             labelpad=45,
-            fontsize=50
         )
 
         if save_path is not None:
@@ -653,10 +633,10 @@ class VFMShow:
 
         layers_list = ['l1', 'l2', 'l3']
         half = crop_size // 2
-        save_dir = './output/VFM_umap'
+        save_dir = './preprocess/VFM_umap'
         os.makedirs(save_dir, exist_ok=True)
 
-        mask = np.load('./output/combined_eye_mask_41x82.npz')['mask'].astype(bool)
+        mask = np.load('./preprocess/combined_eye_mask_41x82.npz')['mask'].astype(bool)
         H, W = mask.shape
         yy, xx = np.where(mask)
 
@@ -667,7 +647,7 @@ class VFMShow:
         for layer in layers_list:
             matrices[layer] = {}
             for s in ['left', 'right']:
-                path = f'./output/VFM/{layer}_{s}.npz'
+                path = f'./preprocess/VFM/{layer}_{s}.npz'
                 if os.path.exists(path):
                     d = np.load(path)
                     matrices[layer][s] = {
@@ -913,10 +893,10 @@ class VFMShow:
 
         layers_list = ['l1', 'l2', 'l3']
         half = crop_size // 2
-        save_dir = './output/VFM_umap'
+        save_dir = './preprocess/VFM_umap'
         os.makedirs(save_dir, exist_ok=True)
 
-        mask = np.load('./output/combined_eye_mask_41x82.npz')['mask'].astype(bool)
+        mask = np.load('./preprocess/combined_eye_mask_41x82.npz')['mask'].astype(bool)
         H, W = mask.shape
         yy, xx = np.where(mask)
 
@@ -925,7 +905,7 @@ class VFMShow:
         for layer in layers_list:
             matrices[layer] = {}
             for s in ['left', 'right']:
-                path = f'./output/VFM/{layer}_{s}.npz'
+                path = f'./preprocess/VFM/{layer}_{s}.npz'
                 if os.path.exists(path):
                     d = np.load(path)
                     matrices[layer][s] = {
@@ -1173,10 +1153,10 @@ class VFMShow:
         layers_list = ['l1', 'l2', 'l3']
         half = crop_size // 2
 
-        save_dir = './output/VFM_correlation'
+        save_dir = './preprocess/VFM_correlation'
         os.makedirs(save_dir, exist_ok=True)
 
-        mask = np.load('./output/combined_eye_mask_41x82.npz')['mask'].astype(bool)
+        mask = np.load('./preprocess/combined_eye_mask_41x82.npz')['mask'].astype(bool)
         H, W = mask.shape
         yy, xx = np.where(mask)
 
@@ -1184,7 +1164,7 @@ class VFMShow:
         for layer in layers_list:
             matrices[layer] = {}
             for s in ['left', 'right']:
-                path = f'./output/VFM/{layer}_{s}.npz'
+                path = f'./preprocess/VFM/{layer}_{s}.npz'
                 if os.path.exists(path):
                     d = np.load(path)
                     matrices[layer][s] = {

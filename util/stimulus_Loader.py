@@ -11,7 +11,7 @@ class StimulusProcessor:
         is_visual=False,
         fps=1000.0,
         downsample=1,
-        save_dir="results"
+        save_dir="../results"
     ):
         self.target_dt_ms = target_dt_ms
         self.target_size = target_size
@@ -31,7 +31,6 @@ class StimulusProcessor:
 
         data = np.load(filepath)
         frames = data['frames']  # (T, H, W)
-        # 转换为 (H, W, T) 并归一化到 0-1
         stimulus = np.transpose(frames, (1, 2, 0)).astype(np.float32) / 255.0
         if self.downsample > 1:
             stimulus = stimulus[:, :, ::self.downsample]
