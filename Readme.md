@@ -107,7 +107,7 @@ To reproduce the results and figures, please run the Jupyter Notebooks in the `s
 
 ### Phase 2: Neural Dynamics Simulation (Run in Any Order)
 Once the matrices are generated, you can run the following simulation scripts independently:
-- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the Full-Range Index (FRI).
+- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the ON/OFF-contrast selectivity indices (FRI).
 - **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
 - **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
 - **`neuron_RealWorld.ipynb`**: Simulates responses to complex real-world video stimuli.
