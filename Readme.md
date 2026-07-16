@@ -73,20 +73,25 @@ pip-sync
 
 ## 📦 Data Availability
 
-The data used in this project can be obtained from the following resources:
+The archived project is available from [Zenodo](https://doi.org/10.5281/zenodo.21373953) as
+`SICLab_without_sk_and_PRS.tar.gz`.
 
-- **Dataset repository (preprocessed FlyWire data):** https://zenodo.org/records/19213473  
-  This repository provides a preprocessed version of the FlyWire dataset suitable for running the SIC model directly.
+To keep the archive size manageable, the Zenodo package does not include:
 
-- **Detailed connectomics and neural data:** [FlyWire platform](https://codex.flywire.ai/api/download?dataset=fafb)  
-  For access to the full-scale neural reconstructions and connectomics data.
+- `data/sk_lod1_783_healed/`: FlyWire neuron skeleton files used for 3D visualization.
+- `results/PRS/`: large generated simulation results, which can be reproduced by running the notebooks in `script/`.
+
+The omitted neuron skeletons can be downloaded directly from the
+[FlyWire Codex data product API](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).
+After downloading and extracting them, place the SWC files under
+`data/sk_lod1_783_healed/`.
   
 ## 🧬 3D Visualization of Neurons
 
 To perform three-dimensional visualization of neurons, follow these steps:
 
-1. **Download Neuron Skeletons** from the FlyWire dataset: [FlyWire Skeleton Files](https://codex.flywire.ai/api/download?dataset=fafb#collapseskeleton_swc_files)  
-   These skeleton files are required for reconstructing 3D neuronal structures.
+1. **Download neuron skeletons** from the FlyWire dataset: [FlyWire Skeleton SWC Files](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).  
+   Extract the downloaded skeletons into `data/sk_lod1_783_healed/`. These SWC files are required for reconstructing 3D neuronal structures and generating the corresponding visualizations.
 
 2. **Ensure dependencies are installed:**  
    The `navis` Python package and its dependencies are required for 3D reconstruction. This is automatically handled if you followed the **Environment Setup** instructions using the `requirements.in` file.
@@ -106,3 +111,10 @@ Once the matrices are generated, you can run the following simulation scripts in
 - **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
 - **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
 - **`neuron_RealWorld.ipynb`**: Simulates responses to complex real-world video stimuli.
+
+### Phase 3: Results Analysis & Plotting (Run Last)
+After the simulation data is generated, run these plotting scripts to generate the figures:
+- **`Figure2.ipynb`**: Analyzes connection strengths and depths (depends on Phase 1).
+- **`Figure3.ipynb` & `Figure3b.ipynb`**: Visualizes polarity (FRI) and direction selectivity (DSI) distributions (depends on Phase 2).
+- **`Figure4.ipynb`**: Plots peak traces for looming responses (depends on `neuron_looming.ipynb`).
+- **`Figure5.ipynb`**: Visualizes 3D brain structure and networks (requires SWC data and Phase 1 matrices).
