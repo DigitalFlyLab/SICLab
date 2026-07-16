@@ -150,3 +150,13 @@ when rerunning analyses that consume the raw responses.
 ### Phase 3: Results Analysis and Figure Reproduction (Run Last)
 
 Once the simulation data have been generated, run the following plotting notebooks to reproduce the figures in the paper.
+
+---
+
+## Mouse SIC Functional Validation
+
+The companion repository [DigitalFlyLab/SIC_mouse](https://github.com/DigitalFlyLab/SIC_mouse) adapts SIC-style multistep structural path analysis to the MICrONS mouse visual-cortex connectome. It constructs a signed v1822 synapse graph, computes directed paths from depth 1 to 10, and tests whether stronger structural paths are associated with more similar functional representations.
+
+The figure below summarizes the signed SIC score across functional-similarity quantiles for digital-twin response correlation, readout similarity, and in-vivo signal correlation. The analysis notebook, data sources, and resumable v1822 synapse downloader are available in the companion repository.
+
+![Mouse SIC functional validation](refer/SIC_mouse_functional_validation.png)
