@@ -16,15 +16,15 @@
 ## 🧠 Overview
 
 **SIC** is a model designed to predict neural activity across the entire brain.  
-The SIC framework provides a unified approach for modeling neural dynamics in the **Drosophila visual system and other sensory modalities**.
+The SIC framework provides a unified approach for modeling neural dynamics in the **Drosophila visual system across diverse visual stimulus classes**.
 
 Using the SIC model, researchers can achieve:
 
 - **Improved prediction of neural activity**  
   The SIC model captures neural responses to visual stimuli with high stability and accuracy.
 
-- **Generalization across sensory modalities**  
-  The model successfully predicts neural dynamics in both visual and motion-related circuits, accurately reproducing inhibitory and excitatory interactions observed in experimental data.
+- **Generalization across visual stimulus conditions**  
+  The model predicts neural dynamics in circuits responding to ON/OFF flashes, moving edges, looming objects, and real-world video while representing both inhibitory and excitatory interactions.
 
 - **Whole-brain, neuron-level simulation**  
   By incorporating partially measured neural activity as constraints, SIC can simulate responses of individual neurons across the entire brain under diverse conditions. This provides a comprehensive framework linking sensory inputs to whole-brain neural activity and enables new possibilities for digital life modeling.
@@ -39,15 +39,15 @@ The SIC model aims to simulate large-scale neural dynamics by:
 
 ## 📊 Model Comparison
 
-| Feature | DMN | LIF | SIC |
-|------|------|------|------|
-| Neural response | Type-level | Neuron-level | Neuron-level |
-| Response representation | Detailed | Simplified | Detailed |
-| Circuit-level function | Task-specific | Multiple tasks | Multiple tasks |
-| Additional parameters | Parameter learning | Membrane potential | Measured activity |
-| Inhibitory interactions | Explicit modeling | Partially nonfunctional | Explicit modeling |
-| Brain coverage | Visual only | Whole brain | Whole brain |
-| Sensory modalities | Visual | Multiple modalities | Multiple modalities |
+| Aspect | DMN | LIF | SIC |
+|---|---|---|---|
+| Modelling paradigm | Deep-learning-based dynamical model | Dynamical neural simulation | Static functional inference |
+| Inference strategy | Iterative parameter optimization | Explicit membrane dynamics simulation | Query-driven selective inference |
+| Dependence on training | Required | Not required | Not required |
+| Response resolution | Neuron-type level | Neuron level | Neuron level |
+| Response representation | Detailed but population-averaged | Simplified dynamical firing states | Detailed and physiologically constrained |
+| Generalization | Task-specific | Task-flexible | Task-flexible |
+| Brain coverage | Visual circuits only | Whole-brain | Whole-brain |
 
 ---
 
@@ -69,20 +69,33 @@ pip-compile requirements.in
 pip-sync
 ```
 
+Several simulation notebooks explicitly select `cuda:0` or `cuda:1`. Before running them,
+change the `device` argument to match the available GPU, or use `torch.device("cpu")` if
+CUDA is unavailable. The large whole-brain simulations are substantially faster on a GPU.
+
 ---
 
 ## 📦 Data Availability
 
-The archived project is available from [Zenodo](https://doi.org/10.5281/zenodo.21373953) as
-`SICLab_without_sk_and_PRS.tar.gz`.
+The archived project is available from [Zenodo](https://doi.org/10.5281/zenodo.21373953).
+Because of upload size limits, `SICLab_without_sk_and_PRS.tar.gz` is distributed as six
+parts named `SICLab_without_sk_and_PRS.tar.gz.part-00` through
+`SICLab_without_sk_and_PRS.tar.gz.part-05`.
+
+Download all six parts into the same directory, then reconstruct and extract the archive:
+
+```bash
+cat SICLab_without_sk_and_PRS.tar.gz.part-* > SICLab_without_sk_and_PRS.tar.gz
+tar -xzf SICLab_without_sk_and_PRS.tar.gz
+```
 
 To keep the archive size manageable, the Zenodo package does not include:
 
 - `data/sk_lod1_783_healed/`: FlyWire neuron skeleton files used for 3D visualization.
 - `results/PRS/`: large generated simulation results, which can be reproduced by running the notebooks in `script/`.
 
-The omitted neuron skeletons can be downloaded directly from the
-[FlyWire Codex data product API](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).
+The omitted neuron skeletons can be obtained from the
+[FlyWire Codex download portal](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).
 After downloading and extracting them, place the SWC files under
 `data/sk_lod1_783_healed/`.
   
@@ -100,21 +113,40 @@ To perform three-dimensional visualization of neurons, follow these steps:
 
 ## 🚀 Reproduction Workflow
 
-To reproduce the results and figures, please run the Jupyter Notebooks in the `script/` folder in the following order:
+To reproduce the results and figures, start Jupyter from the `script/` directory because
+the notebooks use paths relative to that directory:
+
+```bash
+cd script
+jupyter lab
+```
+
+Then run the notebooks in the following order.
 
 ### Phase 1: Connectome Matrix Generation (Run First)
-- **`get_FM.ipynb`**: Processes raw synaptic connection data and generates the functional mapping weights (saved in `output/`). This must be executed before any other scripts.
+
+- **`get_FM.ipynb`**: Processes the raw synaptic connection data and writes the functional mapping matrices and visualization summaries to `script/preprocess/`. The Zenodo archive includes these precomputed files, so rerun this notebook only when regenerating the matrices from the raw data.
+- **`get_FM_block.ipynb`**: Generates the blocked functional mapping matrices used by the pathway-blocking experiments.
 
 ### Phase 2: Neural Dynamics Simulation (Run in Any Order)
+
 Once the matrices are generated, you can run the following simulation scripts independently:
-- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the ON/OFF-contrast selectivity indices (FRI).
+
+- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the **ON/OFF contrast-selectivity index (FRI)**.
 - **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
 - **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
-- **`neuron_RealWorld.ipynb`**: Simulates responses to complex real-world video stimuli.
+- **`neuron_looming_block.ipynb`**: Simulates looming responses after pathway blocking. The current notebook is configured for `blockLPLC2`; update `block`, `RESPONSE_ROOT`, and `output_dir` consistently to generate the `blockLC4` and `blockLC4_LPLC2` conditions used by Figure 4.
+- **`neuron_RealWorld.ipynb`** *(optional)*: Simulates responses to complex real-world video stimuli; it is not required by the figure notebooks listed below.
+
+The raw population-response files produced in this phase are written under `results/PRS/`.
+They are excluded from the Zenodo archive because of their size and must be regenerated
+when rerunning analyses that consume the raw responses.
 
 ### Phase 3: Results Analysis & Plotting (Run Last)
+
 After the simulation data is generated, run these plotting scripts to generate the figures:
-- **`Figure2.ipynb`**: Analyzes connection strengths and depths (depends on Phase 1).
-- **`Figure3.ipynb` & `Figure3b.ipynb`**: Visualizes polarity (FRI) and direction selectivity (DSI) distributions (depends on Phase 2).
-- **`Figure4.ipynb`**: Plots peak traces for looming responses (depends on `neuron_looming.ipynb`).
+
+- **`Figure2.ipynb`**: Analyzes connection strengths and depths (requires the Phase 1 matrices and the downloaded SWC skeletons).
+- **`Figure3.ipynb`**: Visualizes FRI and DSI distributions (requires the outputs from `neuron_FRI.ipynb` and `neuron_DSI.ipynb`).
+- **`Figure4.ipynb`**: Plots looming-response traces and pathway-blocking comparisons (requires the control and all blocked looming-response datasets).
 - **`Figure5.ipynb`**: Visualizes 3D brain structure and networks (requires SWC data and Phase 1 matrices).
