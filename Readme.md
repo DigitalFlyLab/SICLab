@@ -53,15 +53,15 @@ The SIC model aims to simulate large-scale neural dynamics by:
 
 ## 🛠 Environment Setup
 
-To set up the environment and install all necessary dependencies for this project, you can use the provided `requirements.in` file. 
+To set up the environment and install all necessary dependencies for this project, use the provided **requirements.in** file.
 
-Run the following command to install the required packages directly via `pip`:
+Run the following command to install the required packages directly with **pip**:
 
 ```bash
 pip install -r requirements.in
 ```
 
-*(Optional)* If you manage your environments with `pip-tools`, you can compile it into a `requirements.txt` and sync your environment:
+Optional environment management with **pip-tools** can compile **requirements.in** into **requirements.txt** and synchronize the environment.
 
 ```bash
 pip install pip-tools
@@ -69,18 +69,23 @@ pip-compile requirements.in
 pip-sync
 ```
 
-Several simulation notebooks explicitly select `cuda:0` or `cuda:1`. Before running them,
-change the `device` argument to match the available GPU, or use `torch.device("cpu")` if
-CUDA is unavailable. The large whole-brain simulations are substantially faster on a GPU.
+Several simulation notebooks explicitly select a computing device:
+
+- **cuda:0** selects the first GPU.
+- **cuda:1** selects the second GPU.
+- **cpu** runs the simulation without CUDA.
+
+Before running a notebook, set its **device** argument to match the available hardware.
+The large whole-brain simulations are substantially faster on a GPU.
 
 ---
 
 ## 📦 Data Availability
 
 The archived project is available from [Zenodo](https://doi.org/10.5281/zenodo.21373953).
-Because of upload size limits, `SICLab_without_sk_and_PRS.tar.gz` is distributed as six
-parts named `SICLab_without_sk_and_PRS.tar.gz.part-00` through
-`SICLab_without_sk_and_PRS.tar.gz.part-05`.
+Because of upload size limits, **SICLab_without_sk_and_PRS.tar.gz** is distributed as six
+parts named **SICLab_without_sk_and_PRS.tar.gz.part-00** through
+**SICLab_without_sk_and_PRS.tar.gz.part-05**.
 
 Download all six parts into the same directory, then reconstruct and extract the archive:
 
@@ -91,29 +96,29 @@ tar -xzf SICLab_without_sk_and_PRS.tar.gz
 
 To keep the archive size manageable, the Zenodo package does not include:
 
-- `data/sk_lod1_783_healed/`: FlyWire neuron skeleton files used for 3D visualization.
-- `results/PRS/`: large generated simulation results, which can be reproduced by running the notebooks in `script/`.
+- **data/sk_lod1_783_healed/**: FlyWire neuron skeleton files used for 3D visualization.
+- **results/PRS/**: large generated simulation results, which can be reproduced by running the notebooks in **script/**.
 
 The omitted neuron skeletons can be obtained from the
 [FlyWire Codex download portal](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).
 After downloading and extracting them, place the SWC files under
-`data/sk_lod1_783_healed/`.
+**data/sk_lod1_783_healed/**.
   
 ## 🧬 3D Visualization of Neurons
 
 To perform three-dimensional visualization of neurons, follow these steps:
 
 1. **Download neuron skeletons** from the FlyWire dataset: [FlyWire Skeleton SWC Files](https://codex.flywire.ai/api/download?data_product=skeleton_swc_files&dataset=fafb).  
-   Extract the downloaded skeletons into `data/sk_lod1_783_healed/`. These SWC files are required for reconstructing 3D neuronal structures and generating the corresponding visualizations.
+   Extract the downloaded skeletons into **data/sk_lod1_783_healed/**. These SWC files are required for reconstructing 3D neuronal structures and generating the corresponding visualizations.
 
 2. **Ensure dependencies are installed:**  
-   The `navis` Python package and its dependencies are required for 3D reconstruction. This is automatically handled if you followed the **Environment Setup** instructions using the `requirements.in` file.
+   The **navis** Python package and its dependencies are required for 3D reconstruction. This is automatically handled by the **Environment Setup** instructions using the **requirements.in** file.
 
 ---
 
 ## 🚀 Reproduction Workflow
 
-To reproduce the results and figures, start Jupyter from the `script/` directory because
+To reproduce the results and figures, start Jupyter from the **script/** directory because
 the notebooks use paths relative to that directory:
 
 ```bash
@@ -125,28 +130,23 @@ Then run the notebooks in the following order.
 
 ### Phase 1: Connectome Matrix Generation (Run First)
 
-- **`get_FM.ipynb`**: Processes the raw synaptic connection data and writes the functional mapping matrices and visualization summaries to `script/preprocess/`. The Zenodo archive includes these precomputed files, so rerun this notebook only when regenerating the matrices from the raw data.
-- **`get_FM_block.ipynb`**: Generates the blocked functional mapping matrices used by the pathway-blocking experiments.
+- **get_FM.ipynb**: Processes the raw synaptic connection data and writes the functional mapping matrices and visualization summaries to **script/preprocess/**. The Zenodo archive includes these precomputed files, so rerun this notebook only when regenerating the matrices from the raw data.
+- **get_FM_block.ipynb**: Generates the blocked functional mapping matrices used by the pathway-blocking experiments.
 
 ### Phase 2: Neural Dynamics Simulation (Run in Any Order)
 
 Once the matrices are generated, you can run the following simulation scripts independently:
 
-- **`neuron_FRI.ipynb`**: Simulates ON/OFF stimuli to calculate the **ON/OFF contrast-selectivity index (FRI)**.
-- **`neuron_DSI.ipynb`**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
-- **`neuron_looming.ipynb`**: Simulates looming dark disk stimuli.
-- **`neuron_looming_block.ipynb`**: Simulates looming responses after pathway blocking. The current notebook is configured for `blockLPLC2`; update `block`, `RESPONSE_ROOT`, and `output_dir` consistently to generate the `blockLC4` and `blockLC4_LPLC2` conditions used by Figure 4.
-- **`neuron_RealWorld.ipynb`** *(optional)*: Simulates responses to complex real-world video stimuli; it is not required by the figure notebooks listed below.
+- **neuron_FRI.ipynb**: Simulates ON/OFF stimuli to calculate the **ON/OFF contrast-selectivity index (FRI)**.
+- **neuron_DSI.ipynb**: Simulates moving edge stimuli for Direction Selectivity Index (DSI) calculation.
+- **neuron_looming.ipynb**: Simulates looming dark disk stimuli.
+- **neuron_looming_block.ipynb**: Simulates looming responses after pathway blocking. The current notebook is configured for **blockLPLC2**; update **block**, **RESPONSE_ROOT**, and **output_dir** consistently to generate the **blockLC4** and **blockLC4_LPLC2** conditions used by Figure 4.
+- **neuron_RealWorld.ipynb** *(optional)*: Simulates responses to complex real-world video stimuli; it is not required by the figure notebooks listed below.
 
-The raw population-response files produced in this phase are written under `results/PRS/`.
+The raw population-response files produced in this phase are written under **results/PRS/**.
 They are excluded from the Zenodo archive because of their size and must be regenerated
 when rerunning analyses that consume the raw responses.
 
-### Phase 3: Results Analysis & Plotting (Run Last)
+### Phase 3: Results Analysis and Figure Reproduction (Run Last)
 
-After the simulation data is generated, run these plotting scripts to generate the figures:
-
-- **`Figure2.ipynb`**: Analyzes connection strengths and depths (requires the Phase 1 matrices and the downloaded SWC skeletons).
-- **`Figure3.ipynb`**: Visualizes FRI and DSI distributions (requires the outputs from `neuron_FRI.ipynb` and `neuron_DSI.ipynb`).
-- **`Figure4.ipynb`**: Plots looming-response traces and pathway-blocking comparisons (requires the control and all blocked looming-response datasets).
-- **`Figure5.ipynb`**: Visualizes 3D brain structure and networks (requires SWC data and Phase 1 matrices).
+Once the simulation data have been generated, run the following plotting notebooks to reproduce the figures in the paper.
